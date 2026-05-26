@@ -104,6 +104,63 @@ export const postgresAdapter = {
     return rows.map((r) => r.id);
   },
 
+  async bulkInsertPriceSnapshots(snapshots) {
+    if (!snapshots?.length) return;
+    const p = await getPool();
+    const client = await p.connect();
+    try {
+      await client.query('BEGIN');
+      const stmt = `INSERT INTO price_history (product_id, market_price, low_price, high_price, listings_count, source, recorded_at)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    ON CONFLICT (product_id, recorded_at) DO UPDATE SET
+                      market_price=EXCLUDED.market_price, low_price=EXCLUDED.low_price,
+                      high_price=EXCLUDED.high_price, listings_count=EXCLUDED.listings_count`;
+      for (const r of snapshots) {
+        await client.query(stmt, [
+          r.productId, r.marketPrice, r.lowPrice, r.highPrice,
+          r.listingsCount ?? 0, r.source, r.recordedAt,
+        ]);
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  },
+
+  async bulkUpsertProducts(products) {
+    if (!products?.length) return;
+    for (const product of products) {
+      await this.upsertProduct(product);
+    }
+  },
+
+  async getLatestPrices(productIds) {
+    if (!productIds.length) return new Map();
+    const p = await getPool();
+    const { rows } = await p.query(
+      `SELECT DISTINCT ON (product_id) product_id AS "productId", market_price AS "marketPrice",
+              low_price AS "lowPrice", high_price AS "highPrice",
+              listings_count AS "listingsCount", source, recorded_at::text AS "recordedAt"
+       FROM price_history WHERE product_id = ANY($1)
+       ORDER BY product_id, recorded_at DESC`,
+      [productIds]
+    );
+    return new Map(rows.map((r) => [r.productId, r]));
+  },
+
+  async getProductsWithHistory(minPoints = 7) {
+    const p = await getPool();
+    const { rows } = await p.query(
+      `SELECT p.* FROM products p
+       WHERE (SELECT COUNT(*) FROM price_history h WHERE h.product_id = p.id) >= $1`,
+      [minPoints]
+    );
+    return rows.map(rowToProduct);
+  },
+
   async insertPriceSnapshot(snapshot) {
     const p = await getPool();
     await p.query(

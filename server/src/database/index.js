@@ -17,32 +17,27 @@ export async function initDatabase() {
   }
 }
 
-/** Wrap sync SQLite calls so routes can always await db methods */
-function wrapAdapter(a) {
-  return new Proxy(a, {
-    get(target, prop) {
-      const val = target[prop];
-      if (typeof val !== 'function') return val;
+/**
+ * Unified async db facade. Calls adapter[method] with `this` bound to adapter,
+ * so SQLite methods that use `this.foo()` work correctly. Always returns a
+ * Promise, so routes can `await` uniformly across SQLite (sync) and PG (async).
+ */
+export const db = new Proxy(
+  {},
+  {
+    get(_target, prop) {
       return (...args) => {
-        const result = val.apply(target, args);
-        return result instanceof Promise ? result : Promise.resolve(result);
+        const fn = adapter[prop];
+        if (typeof fn !== 'function') {
+          return Promise.reject(new Error(`Unknown db method: ${String(prop)}`));
+        }
+        try {
+          const result = fn.apply(adapter, args);
+          return result instanceof Promise ? result : Promise.resolve(result);
+        } catch (err) {
+          return Promise.reject(err);
+        }
       };
     },
-  });
-}
-
-export const db = wrapAdapter(
-  new Proxy(
-    {},
-    {
-      get(_t, prop) {
-        return (...args) => {
-          const fn = adapter[prop];
-          if (!fn) throw new Error(`Unknown db method: ${String(prop)}`);
-          const result = fn(...args);
-          return result instanceof Promise ? result : Promise.resolve(result);
-        };
-      },
-    }
-  )
+  }
 );

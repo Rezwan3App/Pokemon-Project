@@ -103,10 +103,18 @@ export function buildPriceSummary(history) {
   const month = priceAtOffset(history.map((h) => h.marketPrice), 30);
   const first = history[0].marketPrice;
 
-  const isMock =
-    !latest.source ||
-    latest.source.startsWith('mock') ||
-    latest.source.includes('sample');
+  const src = latest.source || '';
+  const isMock = !src || src.startsWith('mock') || src.includes('sample');
+  const isLive = src.startsWith('tcgplayer') || src.includes('cardmarket');
+
+  let note;
+  if (isLive) {
+    note = 'Current price from TCGplayer via the Pokémon TCG API. Historical points are simulated until daily snapshots accumulate.';
+  } else if (isMock) {
+    note = 'Sample market data (MVP). This card has no live TCGplayer price on the Pokémon TCG API yet.';
+  } else {
+    note = `Source: ${src}`;
+  }
 
   return {
     current: latest.marketPrice,
@@ -114,14 +122,13 @@ export function buildPriceSummary(history) {
     high: latest.highPrice,
     listingsCount: latest.listingsCount ?? 0,
     lastUpdated: latest.recordedAt,
-    source: latest.source,
+    source: src,
     isMock,
+    isLive,
     change7d: round(percentChange(week, latest.marketPrice)),
     change30d: round(percentChange(month, latest.marketPrice)),
     changeAllTime: round(percentChange(first, latest.marketPrice)),
-    note: isMock
-      ? 'Sample market data (MVP). Card images/metadata from Pokémon TCG API. Connect TCGplayer or eBay for live prices.'
-      : `Live pricing from ${latest.source}.`,
+    note,
   };
 }
 

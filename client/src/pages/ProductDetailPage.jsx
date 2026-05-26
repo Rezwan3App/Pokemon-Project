@@ -6,7 +6,6 @@ import TrendBadge from '../components/TrendBadge.jsx';
 import PriceChart from '../components/PriceChart.jsx';
 import PriceSummary from '../components/PriceSummary.jsx';
 import WatchlistButton from '../components/WatchlistButton.jsx';
-import DisclaimerBanner from '../components/DisclaimerBanner.jsx';
 import MockPriceBadge from '../components/MockPriceBadge.jsx';
 
 export default function ProductDetailPage() {
@@ -17,6 +16,7 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     getProduct(id)
       .then(setData)
       .catch((e) => setError(e.message))
@@ -35,91 +35,113 @@ export default function ProductDetailPage() {
     );
   }
 
-  const product = data.product;
-  const { history } = data;
+  const { product, history } = data;
   const price = product.price;
   const trend = product.trend;
+  const variant = product.metadata?.primaryVariant;
 
   return (
     <div className="space-y-8">
-      <Link to="/search?q=pokemon" className="text-sm text-poke-yellow hover:underline">
-        ← Back to search
+      <Link to="/" className="text-sm text-zinc-400 hover:text-poke-yellow">
+        ← Back home
       </Link>
 
-      <DisclaimerBanner />
-
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="card-surface flex min-h-[320px] items-center justify-center p-6">
+      <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+        <div className="surface flex items-center justify-center p-6 lg:min-h-[420px]">
           {product.image ? (
-            <img src={product.image} alt={product.name} className="max-h-[480px] object-contain" />
+            <img
+              src={product.image}
+              alt={product.name}
+              className="max-h-[460px] object-contain"
+            />
           ) : (
-            <div className="text-center text-white/40">
-              <span className="text-5xl">📦</span>
-              <p className="mt-2">{product.type === 'sealed' ? 'Sealed product' : 'No image'}</p>
+            <div className="text-center text-sm text-zinc-500">
+              <p>{product.type === 'sealed' ? 'Sealed product' : 'No image'}</p>
             </div>
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div>
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs uppercase">
-              {product.type === 'sealed' ? 'Sealed' : 'Card'}
-            </span>
-            <h1 className="mt-2 text-3xl font-bold">{product.name}</h1>
-            <p className="text-white/60">
-              {product.setName} · {product.subtype || product.metadata?.rarity || '—'}
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+                {product.type === 'sealed' ? 'Sealed' : 'Card'}
+              </span>
+              <MockPriceBadge price={price} />
+            </div>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+              {product.name}
+            </h1>
+            <p className="mt-0.5 text-sm text-zinc-500">
+              {product.setName}
+              {product.metadata?.number && ` · #${product.metadata.number}`}
+              {product.metadata?.rarity && ` · ${product.metadata.rarity}`}
+              {variant && ` · ${formatVariant(variant)}`}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <PriceSummary price={price} />
-            <MockPriceBadge price={price} />
-          </div>
+          <PriceSummary price={price} />
+
           <TrendBadge trend={trend} />
 
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <ChangeBox label="7-day" value={price?.change7d} />
-            <ChangeBox label="30-day" value={price?.change30d} />
+          <div className="grid grid-cols-3 gap-2 text-sm num">
+            <ChangeBox label="7d" value={price?.change7d} />
+            <ChangeBox label="30d" value={price?.change30d} />
             <ChangeBox label="All-time" value={price?.changeAllTime} />
           </div>
 
-          {price?.listingsCount > 0 && price?.isMock && (
-            <p className="text-sm text-white/50">~{price.listingsCount} simulated listings</p>
-          )}
-
-          <WatchlistButton productId={product.id} initial={product.watchlisted} />
-
-          {product.metadata?.tcgplayerUrl && (
-            <a
-              href={product.metadata.tcgplayerUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary inline-block"
-            >
-              TCGplayer listing ↗
-            </a>
-          )}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <WatchlistButton productId={product.id} initial={product.watchlisted} />
+            {product.metadata?.tcgplayerUrl && (
+              <a
+                href={product.metadata.tcgplayerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary"
+              >
+                View on TCGplayer ↗
+              </a>
+            )}
+            {product.metadata?.cardmarketUrl && (
+              <a
+                href={product.metadata.cardmarketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary"
+              >
+                Cardmarket ↗
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
-      <section className="card-surface p-6">
-        <h2 className="mb-4 text-lg font-semibold">Price history</h2>
+      <section className="surface p-5">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-base font-medium text-zinc-100">Price history</h2>
+          <span className="text-[11px] text-zinc-500">{price?.note}</span>
+        </div>
         <PriceChart history={history} />
-        <p className="mt-2 text-xs text-white/40">{price?.note}</p>
       </section>
     </div>
   );
+}
+
+function formatVariant(v) {
+  return v
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
 }
 
 function ChangeBox({ label, value }) {
   if (value == null) return null;
   const positive = value >= 0;
   return (
-    <div className="rounded-lg bg-black/20 p-3 text-center">
-      <p className="text-white/40">{label}</p>
-      <p className={`text-lg font-bold ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-        {positive ? '+' : ''}
-        {value}%
+    <div className="surface px-3 py-2">
+      <p className="label">{label}</p>
+      <p className={`text-base font-semibold ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+        {positive ? '+' : ''}{value}%
       </p>
     </div>
   );

@@ -4,16 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
+        ink: '#0b0c0e',
         poke: {
           red: '#EE1515',
           yellow: '#FFCB05',
           blue: '#3B4CCA',
-          dark: '#1a1a2e',
-          panel: '#16213e',
+          dark: '#0b0c0e',
+          panel: '#111316',
         },
       },
       fontFamily: {
-        display: ['"Segoe UI"', 'system-ui', 'sans-serif'],
+        display: ['Inter', '"Segoe UI"', 'system-ui', 'sans-serif'],
       },
     },
   },

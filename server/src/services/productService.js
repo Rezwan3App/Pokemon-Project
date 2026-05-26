@@ -1,15 +1,25 @@
 import { db } from '../database/index.js';
-import { searchCards, getCardProduct, getProductsByIds } from './pokemonApi.js';
-import { searchSealed, getSealedById } from './sealedCatalog.js';
+import { searchCards, getCardProduct, getProductsByIds, getPopularCards } from './pokemonApi.js';
+import { searchSealed, getSealedById, getAllSealedProducts } from './sealedCatalog.js';
 import { updateProductPrices } from './pricing/index.js';
 import { mockProvider } from './pricing/mockProvider.js';
-import { enrichProduct } from './trends.js';
+import { enrichProduct, computeTrendScore, buildPriceSummary } from './trends.js';
+import { toDateKey } from '../utils/dates.js';
 
-/** Persist product row and ensure price history exists */
+/** Persist product row and ensure price history exists (single item) */
 export async function syncProduct(product) {
   await db.upsertProduct(product);
   await mockProvider.ensureHistory(product);
   return db.getProduct(product.id);
+}
+
+/** Persist many products in two batched transactions + parallel history fills */
+async function syncProductsBatch(products) {
+  if (!products.length) return [];
+  await db.bulkUpsertProducts(products);
+  // history backfill — each ensureHistory itself uses a transaction
+  await Promise.all(products.map((p) => mockProvider.ensureHistory(p)));
+  return products;
 }
 
 export async function getEnrichedProduct(productId) {
@@ -25,7 +35,12 @@ export async function getEnrichedProduct(productId) {
     await syncProduct(product);
   }
 
-  await updateProductPrices(product);
+  // Only snapshot if we don't already have one for today
+  const latest = await db.getLatestPrice(productId);
+  if (!latest || latest.recordedAt !== toDateKey()) {
+    await updateProductPrices(product);
+  }
+
   const history = await db.getPriceHistory(productId);
   const watchlisted = await db.isOnWatchlist(productId);
   return { product: enrichProduct(product, history, watchlisted), history };
@@ -37,16 +52,18 @@ export async function searchAll(query, page = 1) {
     Promise.resolve(searchSealed(query, 12)),
   ]);
 
-  const sealedSynced = await Promise.all(sealedHits.map((p) => syncProduct(p)));
-  const cardsSynced = await Promise.all(cardResult.products.map((p) => syncProduct(p)));
+  const all = [...cardResult.products, ...sealedHits];
+  await syncProductsBatch(all);
 
-  const all = [...cardsSynced, ...sealedSynced];
+  // Single watchlist + history fetch per product, all in parallel
+  const watchlistIds = new Set(
+    (await db.getWatchlist()).map((e) => e.productId)
+  );
+
   const enriched = await Promise.all(
     all.map(async (p) => {
       const history = await db.getPriceHistory(p.id);
-      if (!history.length) await mockProvider.ensureHistory(p);
-      const h = await db.getPriceHistory(p.id);
-      return enrichProduct(p, h, await db.isOnWatchlist(p.id));
+      return enrichProduct(p, history, watchlistIds.has(p.id));
     })
   );
 
@@ -54,36 +71,63 @@ export async function searchAll(query, page = 1) {
     products: enriched,
     page: cardResult.page,
     pageSize: cardResult.pageSize,
-    totalCount: cardResult.totalCount + sealedHits.length,
+    totalCount: enriched.length,
+    cardTotal: cardResult.totalCount,
+    sealedTotal: sealedHits.length,
   };
 }
 
-export async function getTrendingProducts() {
-  const trending = await db.getTrendingProductIds(12);
-  let ids = trending.map((t) => t.productId);
+/**
+ * Returns top risers, top fallers, and overall trending — all computed once
+ * over products that have enough price history.
+ */
+export async function getTrendingProducts({ limit = 5 } = {}) {
+  let products = await db.getProductsWithHistory(7);
 
-  if (!ids.length) {
-    const fallback = await searchCards('charizard', 1, 8);
-    ids = fallback.products.map((p) => p.id);
+  // Seed DB the first time so the home page never blanks
+  if (products.length < limit * 2) {
+    const sealed = getAllSealedProducts();
+    const popular = await getPopularCards(4).catch((err) => {
+      console.warn('[trending] getPopularCards failed:', err.message);
+      return [];
+    });
+    await syncProductsBatch([...popular, ...sealed]);
+    products = await db.getProductsWithHistory(7);
   }
 
-  const products = [];
-  for (const id of ids) {
-    if (id.startsWith('sealed:')) {
-      const s = getSealedById(id);
-      if (s) products.push(s);
-    }
-  }
-  const cardProducts = await getProductsByIds(ids.filter((id) => !id.startsWith('sealed:')));
-  const combined = [...cardProducts, ...products];
+  const watchlistIds = new Set(
+    (await db.getWatchlist()).map((e) => e.productId)
+  );
 
-  const enriched = [];
-  for (const p of combined) {
-    await syncProduct(p);
-    const history = await db.getPriceHistory(p.id);
-    enriched.push(enrichProduct(p, history, await db.isOnWatchlist(p.id)));
-  }
-  return enriched;
+  const scored = await Promise.all(
+    products.map(async (p) => {
+      const history = await db.getPriceHistory(p.id);
+      const trend = computeTrendScore(history);
+      const price = buildPriceSummary(history);
+      return {
+        ...p,
+        price,
+        trend,
+        watchlisted: watchlistIds.has(p.id),
+      };
+    })
+  );
+
+  const byChange = [...scored].filter((s) => s.trend);
+  const rising = [...byChange]
+    .sort((a, b) => (b.trend.change7d ?? 0) - (a.trend.change7d ?? 0))
+    .slice(0, limit);
+  const falling = [...byChange]
+    .sort((a, b) => (a.trend.change7d ?? 0) - (b.trend.change7d ?? 0))
+    .slice(0, limit);
+  const mostActive = [...byChange]
+    .sort((a, b) => (b.trend.volatility ?? 0) - (a.trend.volatility ?? 0))
+    .slice(0, limit);
+  const topScore = [...byChange]
+    .sort((a, b) => (b.trend.score ?? 0) - (a.trend.score ?? 0))
+    .slice(0, limit);
+
+  return { rising, falling, mostActive, topScore };
 }
 
 export async function getWatchlistProducts() {
@@ -105,15 +149,18 @@ export async function runPriceUpdateJob() {
   let updated = 0;
   const errors = [];
 
-  for (const id of ids) {
-    try {
-      const product = await db.getProduct(id);
-      if (product) {
-        await updateProductPrices(product);
-        updated++;
-      }
-    } catch (err) {
-      errors.push({ id, message: err.message });
+  // Process in chunks of 10 in parallel
+  for (let i = 0; i < ids.length; i += 10) {
+    const chunk = ids.slice(i, i + 10);
+    const results = await Promise.allSettled(
+      chunk.map(async (id) => {
+        const product = await db.getProduct(id);
+        if (product) await updateProductPrices(product);
+      })
+    );
+    for (let j = 0; j < results.length; j++) {
+      if (results[j].status === 'fulfilled') updated++;
+      else errors.push({ id: chunk[j], message: results[j].reason?.message });
     }
   }
 

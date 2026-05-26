@@ -9,6 +9,7 @@ import productsRouter from './routes/products.js';
 import trendingRouter from './routes/trending.js';
 import updatePricesRouter from './routes/updatePrices.js';
 import watchlistRouter from './routes/watchlist.js';
+import newsRouter from './routes/news.js';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/trending', trendingRouter);
 app.use('/api/update-prices', updatePricesRouter);
 app.use('/api/watchlist', watchlistRouter);
+app.use('/api/news', newsRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

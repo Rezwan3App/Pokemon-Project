@@ -1,12 +1,19 @@
-/** Shown when prices are sample/MVP data, not live marketplace feeds */
+/** Single-source label shown next to price */
 export default function MockPriceBadge({ price }) {
-  if (!price?.isMock) return null;
-  return (
-    <span
-      className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
-      title={price.note}
-    >
-      Sample prices (MVP)
-    </span>
-  );
+  if (!price) return null;
+  if (price.isLive) {
+    return (
+      <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+        Live · TCGplayer
+      </span>
+    );
+  }
+  if (price.isMock) {
+    return (
+      <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+        Sample price
+      </span>
+    );
+  }
+  return null;
 }

@@ -18,13 +18,15 @@ export default function WatchlistPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Watchlist</h1>
-      <p className="text-white/60">
-        Saved locally on this device&apos;s server database. Add items from any product page.
-      </p>
+      <header>
+        <h1 className="text-xl font-medium text-zinc-100">Watchlist</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Products you&apos;ve starred. Saved on the server database.
+        </p>
+      </header>
 
       {loading && <LoadingSpinner />}
-      {error && <p className="text-red-300">{error}</p>}
+      {error && <p className="surface p-4 text-sm text-red-300">{error}</p>}
       {!loading && !error && (
         <ProductGrid
           products={products}
@@ -33,8 +35,8 @@ export default function WatchlistPage() {
       )}
       {!loading && products.length > 0 && (
         <p className="text-center text-sm">
-          <Link to="/search?q=evolving+skies" className="text-poke-yellow hover:underline">
-            Discover more products →
+          <Link to="/" className="text-zinc-400 hover:text-poke-yellow">
+            ← Back to home
           </Link>
         </p>
       )}

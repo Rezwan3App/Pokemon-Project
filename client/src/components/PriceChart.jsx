@@ -27,7 +27,7 @@ export default function PriceChart({ history }) {
   }, [history, range]);
 
   if (!history?.length) {
-    return <p className="py-8 text-center text-white/50">No price history yet.</p>;
+    return <p className="py-8 text-center text-sm text-zinc-500">No price history yet.</p>;
   }
 
   const data = filtered.map((h) => ({
@@ -38,35 +38,54 @@ export default function PriceChart({ history }) {
   }));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-3">
+      <div className="flex gap-1">
         {RANGES.map((r) => (
           <button
             key={r.key}
             type="button"
             onClick={() => setRange(r.key)}
-            className={`rounded-lg px-3 py-1 text-sm ${
-              range === r.key ? 'bg-poke-yellow text-poke-dark' : 'bg-white/10 text-white/70'
+            className={`rounded-md px-2.5 py-1 text-xs transition ${
+              range === r.key
+                ? 'bg-white/10 text-poke-yellow'
+                : 'text-zinc-500 hover:text-zinc-200'
             }`}
           >
             {r.label}
           </button>
         ))}
       </div>
-      <div className="h-72 w-full">
+      <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-            <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} tickFormatter={(v) => `$${v}`} width={48} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+              tickFormatter={(v) => v.slice(5)}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+              tickFormatter={(v) => `$${v}`}
+              width={42}
+              axisLine={false}
+              tickLine={false}
+            />
             <Tooltip
-              contentStyle={{ background: '#16213e', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8 }}
+              contentStyle={{
+                background: '#111316',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                fontSize: 12,
+              }}
               formatter={(v, name) => [`$${Number(v).toFixed(2)}`, name]}
             />
-            <Legend />
-            <Line type="monotone" dataKey="market" name="Market" stroke="#FFCB05" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="low" name="Low" stroke="#60a5fa" strokeWidth={1} dot={false} strokeDasharray="4 4" />
-            <Line type="monotone" dataKey="high" name="High" stroke="#f87171" strokeWidth={1} dot={false} strokeDasharray="4 4" />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Line type="monotone" dataKey="market" name="Market" stroke="#FFCB05" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="low" name="Low" stroke="#60a5fa" strokeWidth={1} dot={false} strokeDasharray="3 3" />
+            <Line type="monotone" dataKey="high" name="High" stroke="#f87171" strokeWidth={1} dot={false} strokeDasharray="3 3" />
           </LineChart>
         </ResponsiveContainer>
       </div>

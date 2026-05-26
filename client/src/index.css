@@ -3,22 +3,44 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    color-scheme: dark;
+  }
   body {
-    @apply min-h-screen bg-gradient-to-br from-poke-dark via-[#0f3460] to-poke-panel;
+    @apply min-h-screen bg-ink text-zinc-100 antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::selection {
+    background: rgba(255, 203, 5, 0.35);
   }
 }
 
 @layer components {
-  .card-surface {
-    @apply rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-lg transition hover:border-poke-yellow/40 hover:shadow-poke-yellow/10;
+  .surface {
+    @apply rounded-lg border border-white/10 bg-white/[0.02];
+  }
+  .surface-hover {
+    @apply transition hover:border-white/20 hover:bg-white/[0.04];
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition disabled:opacity-50;
   }
   .btn-primary {
-    @apply rounded-lg bg-poke-red px-4 py-2 font-semibold text-white transition hover:bg-red-600 disabled:opacity-50;
+    @apply btn bg-poke-yellow text-zinc-900 hover:bg-yellow-300;
   }
   .btn-secondary {
-    @apply rounded-lg border border-white/20 bg-white/10 px-4 py-2 font-medium transition hover:bg-white/20;
+    @apply btn border border-white/15 bg-white/[0.04] text-zinc-100 hover:bg-white/[0.08];
+  }
+  .btn-ghost {
+    @apply btn text-zinc-300 hover:bg-white/[0.06];
   }
   .input-field {
-    @apply w-full rounded-lg border border-white/20 bg-black/30 px-4 py-2.5 text-white placeholder-white/40 outline-none focus:border-poke-yellow focus:ring-1 focus:ring-poke-yellow;
+    @apply w-full rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-poke-yellow/60 focus:bg-white/[0.05];
+  }
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-zinc-500;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
   }
 }

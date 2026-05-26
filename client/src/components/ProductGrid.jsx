@@ -1,16 +1,21 @@
 import ProductTile from './ProductTile.jsx';
 
-export default function ProductGrid({ products, emptyMessage = 'No products found.' }) {
+export default function ProductGrid({ products, emptyMessage = 'No products found.', cols = 4 }) {
   if (!products?.length) {
     return (
-      <p className="rounded-xl border border-dashed border-white/20 py-12 text-center text-white/60">
+      <p className="rounded-md border border-dashed border-white/10 py-12 text-center text-sm text-zinc-500">
         {emptyMessage}
       </p>
     );
   }
 
+  const gridCls =
+    cols === 5
+      ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'
+      : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4';
+
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className={gridCls}>
       {products.map((p) => (
         <ProductTile key={p.id} product={p} />
       ))}

@@ -45,3 +45,7 @@ export function triggerPriceUpdate() {
 export function healthCheck() {
   return request('/health');
 }
+
+export function getNews() {
+  return request('/news');
+}

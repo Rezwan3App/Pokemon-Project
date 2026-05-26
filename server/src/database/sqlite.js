@@ -132,6 +132,81 @@ export const sqliteAdapter = {
       .run(productId, marketPrice, lowPrice, highPrice, listingsCount ?? 0, source, recordedAt);
   },
 
+  /** Bulk insert wrapped in a single transaction — ~10x faster for backfills */
+  bulkInsertPriceSnapshots(snapshots) {
+    if (!snapshots || !snapshots.length) return;
+    const conn = getDb();
+    const stmt = conn.prepare(
+      `INSERT OR REPLACE INTO price_history
+       (product_id, market_price, low_price, high_price, listings_count, source, recorded_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    const insertMany = conn.transaction((rows) => {
+      for (const r of rows) {
+        stmt.run(
+          r.productId,
+          r.marketPrice,
+          r.lowPrice,
+          r.highPrice,
+          r.listingsCount ?? 0,
+          r.source,
+          r.recordedAt
+        );
+      }
+    });
+    insertMany(snapshots);
+  },
+
+  bulkUpsertProducts(products) {
+    if (!products || !products.length) return;
+    const conn = getDb();
+    const stmt = conn.prepare(
+      `INSERT INTO products (id, type, name, set_name, image_url, subtype, metadata, source, updated_at)
+       VALUES (@id, @type, @name, @setName, @image, @subtype, @metadata, @source, datetime('now'))
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         set_name = excluded.set_name,
+         image_url = excluded.image_url,
+         subtype = excluded.subtype,
+         metadata = excluded.metadata,
+         updated_at = datetime('now')`
+    );
+    const insertMany = conn.transaction((rows) => {
+      for (const p of rows) {
+        stmt.run({
+          id: p.id,
+          type: p.type,
+          name: p.name,
+          setName: p.setName || null,
+          image: p.image || null,
+          subtype: p.subtype || null,
+          metadata: JSON.stringify(p.metadata || {}),
+          source: p.source || 'pokemon-tcg',
+        });
+      }
+    });
+    insertMany(products);
+  },
+
+  /** Fetch latest snapshot per product in one query */
+  getLatestPrices(productIds) {
+    if (!productIds.length) return new Map();
+    const placeholders = productIds.map(() => '?').join(',');
+    const rows = getDb()
+      .prepare(
+        `SELECT product_id AS productId, market_price AS marketPrice,
+                low_price AS lowPrice, high_price AS highPrice,
+                listings_count AS listingsCount, source, recorded_at AS recordedAt
+         FROM price_history
+         WHERE product_id IN (${placeholders})
+         AND recorded_at = (
+           SELECT MAX(recorded_at) FROM price_history ph2 WHERE ph2.product_id = price_history.product_id
+         )`
+      )
+      .all(...productIds);
+    return new Map(rows.map((r) => [r.productId, r]));
+  },
+
   getPriceHistory(productId, limit = 365) {
     return getDb()
       .prepare(
@@ -188,6 +263,18 @@ export const sqliteAdapter = {
          LIMIT ?`
       )
       .all(limit);
+  },
+
+  /** All products with at least N price history rows, ordered for trend analysis */
+  getProductsWithHistory(minPoints = 7) {
+    return getDb()
+      .prepare(
+        `SELECT p.id, p.type, p.name, p.set_name, p.image_url, p.subtype, p.metadata, p.source
+         FROM products p
+         WHERE (SELECT COUNT(*) FROM price_history h WHERE h.product_id = p.id) >= ?`
+      )
+      .all(minPoints)
+      .map(rowToProduct);
   },
 
   searchProductsLocal(query, limit = 20) {

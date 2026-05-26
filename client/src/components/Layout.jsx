@@ -12,28 +12,24 @@ export default function Layout({ children }) {
   }
 
   const navClass = ({ isActive }) =>
-    `px-3 py-2 rounded-lg text-sm font-medium transition ${
-      isActive ? 'bg-poke-yellow text-poke-dark' : 'text-white/80 hover:bg-white/10'
+    `px-2.5 py-1.5 rounded-md text-sm transition ${
+      isActive ? 'text-poke-yellow' : 'text-zinc-400 hover:text-zinc-100'
     }`;
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-poke-dark/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-4">
-          <Link to="/" className="flex items-center gap-2 font-display text-xl font-bold">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-poke-red text-sm">
-              ◓
-            </span>
-            <span className="bg-gradient-to-r from-poke-yellow to-white bg-clip-text text-transparent">
-              TCG Price Tracker
-            </span>
+      <header className="sticky top-0 z-50 border-b border-white/5 bg-ink/85 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+          <Link to="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            <span className="inline-block h-2 w-2 rounded-full bg-poke-yellow" />
+            <span>TCG Tracker</span>
           </Link>
 
-          <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px] max-w-lg gap-2">
+          <form onSubmit={handleSearch} className="flex flex-1 min-w-[180px] max-w-md gap-2">
             <input
               type="search"
               className="input-field flex-1"
-              placeholder="Card, Pokémon, set, booster box, ETB…"
+              placeholder="Search cards or sealed products…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Search products"
@@ -43,7 +39,7 @@ export default function Layout({ children }) {
             </button>
           </form>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5">
             <NavLink to="/" end className={navClass}>
               Home
             </NavLink>
@@ -57,12 +53,12 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">{children}</main>
 
-      <footer className="border-t border-white/10 py-6 text-center text-sm text-white/50">
-        Educational tool only — not financial advice.{' '}
-        <Link to="/about" className="text-poke-yellow hover:underline">
-          Data sources & limitations
+      <footer className="border-t border-white/5 py-5 text-center text-xs text-zinc-500">
+        Card data: Pokémon TCG API · Prices may include sample data ·{' '}
+        <Link to="/about" className="text-zinc-300 hover:text-poke-yellow">
+          About & disclaimers
         </Link>
       </footer>
     </div>
