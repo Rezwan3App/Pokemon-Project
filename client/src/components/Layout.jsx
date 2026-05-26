@@ -8,9 +8,7 @@ export default function Layout({ children }) {
   function handleSearch(e) {
     e.preventDefault();
     const q = query.trim();
-    if (q.length >= 2) {
-      navigate(`/search?q=${encodeURIComponent(q)}`);
-    }
+    if (q.length >= 2) navigate(`/search?q=${encodeURIComponent(q)}`);
   }
 
   const navClass = ({ isActive }) =>
@@ -31,13 +29,14 @@ export default function Layout({ children }) {
             </span>
           </Link>
 
-          <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px] max-w-md gap-2">
+          <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px] max-w-lg gap-2">
             <input
               type="search"
               className="input-field flex-1"
-              placeholder="Search cards (e.g. Pikachu, Charizard)…"
+              placeholder="Card, Pokémon, set, booster box, ETB…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search products"
             />
             <button type="submit" className="btn-primary shrink-0">
               Search
@@ -51,6 +50,9 @@ export default function Layout({ children }) {
             <NavLink to="/watchlist" className={navClass}>
               Watchlist
             </NavLink>
+            <NavLink to="/about" className={navClass}>
+              About
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -58,7 +60,10 @@ export default function Layout({ children }) {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
 
       <footer className="border-t border-white/10 py-6 text-center text-sm text-white/50">
-        Card data © Pokémon TCG API · Market prices are mock samples for MVP
+        Educational tool only — not financial advice.{' '}
+        <Link to="/about" className="text-poke-yellow hover:underline">
+          Data sources & limitations
+        </Link>
       </footer>
     </div>
   );

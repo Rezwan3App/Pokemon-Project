@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { searchCards } from '../api.js';
-import CardGrid from '../components/CardGrid.jsx';
+import { searchProducts } from '../api.js';
+import ProductGrid from '../components/ProductGrid.jsx';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 
 export default function SearchPage() {
@@ -17,14 +17,14 @@ export default function SearchPage() {
     if (q.length < 2) return;
     setLoading(true);
     setError(null);
-    searchCards(q, page)
+    searchProducts(q, page)
       .then(setResult)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [q, page]);
 
   const totalPages = result
-    ? Math.max(1, Math.ceil(result.totalCount / (result.pageSize || 24)))
+    ? Math.max(1, Math.ceil(result.totalCount / (result.pageSize || 20)))
     : 1;
 
   function goPage(next) {
@@ -35,9 +35,7 @@ export default function SearchPage() {
 
   if (q.length < 2) {
     return (
-      <p className="text-center text-white/60">
-        Enter at least 2 characters in the search bar above.
-      </p>
+      <p className="text-center text-white/60">Enter at least 2 characters in the search bar.</p>
     );
   }
 
@@ -47,16 +45,16 @@ export default function SearchPage() {
         Results for <span className="text-poke-yellow">&ldquo;{q}&rdquo;</span>
         {result && (
           <span className="ml-2 text-base font-normal text-white/50">
-            ({result.totalCount} cards)
+            ({result.products?.length} shown · {result.totalCount} total matches)
           </span>
         )}
       </h1>
 
-      {loading && <LoadingSpinner />}
-      {error && <p className="text-red-300">{error}</p>}
+      {loading && <LoadingSpinner label="Searching cards and sealed products…" />}
+      {error && <p className="rounded-lg bg-red-500/20 p-4 text-red-200">{error}</p>}
       {!loading && result && (
         <>
-          <CardGrid cards={result.cards} />
+          <ProductGrid products={result.products} />
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-4">
               <button

@@ -1,6 +1,6 @@
 {
   "name": "pokemon-tracker-server",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
@@ -10,6 +10,10 @@
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3"
+  },
+  "optionalDependencies": {
+    "pg": "^8.13.1"
   }
 }

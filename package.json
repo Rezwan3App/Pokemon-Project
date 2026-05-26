@@ -1,6 +1,6 @@
 {
   "name": "pokemon-tcg-price-tracker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Pokémon TCG price tracker with search, trends, and watchlist",
   "scripts": {

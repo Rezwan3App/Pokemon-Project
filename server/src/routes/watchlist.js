@@ -1,43 +1,34 @@
 import { Router } from 'express';
-import {
-  getWatchlist,
-  addToWatchlist,
-  removeFromWatchlist,
-} from '../db.js';
-import { getCardsByIds } from '../services/pokemonApi.js';
-import { getMockPriceSummary, ensurePriceHistory } from '../services/mockPrices.js';
-import { computeTrendScore, enrichCardWithTrend } from '../services/trends.js';
+import { db } from '../database/index.js';
+import { getWatchlistProducts } from '../services/productService.js';
 
 const router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const entries = getWatchlist();
-    if (!entries.length) {
-      return res.json({ cards: [] });
-    }
-    const ids = entries.map((e) => e.card_id);
-    const cards = await getCardsByIds(ids);
-    const enriched = cards.map((card) => {
-      ensurePriceHistory(card);
-      const price = getMockPriceSummary(card);
-      const trend = computeTrendScore(card.id);
-      return enrichCardWithTrend({ ...card, watchlisted: true }, price, trend);
-    });
-    res.json({ cards: enriched });
+    const products = await getWatchlistProducts();
+    res.json({ products });
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/:cardId', (req, res) => {
-  const entry = addToWatchlist(req.params.cardId);
-  res.status(201).json({ watchlisted: true, entry });
+router.post('/:productId', async (req, res, next) => {
+  try {
+    await db.addToWatchlist(req.params.productId);
+    res.status(201).json({ watchlisted: true, productId: req.params.productId });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/:cardId', (req, res) => {
-  const removed = removeFromWatchlist(req.params.cardId);
-  res.json({ watchlisted: false, removed });
+router.delete('/:productId', async (req, res, next) => {
+  try {
+    const removed = await db.removeFromWatchlist(req.params.productId);
+    res.json({ watchlisted: false, removed });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

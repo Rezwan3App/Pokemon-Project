@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { addToWatchlist, removeFromWatchlist } from '../api.js';
 
-export default function WatchlistButton({ cardId, initial = false, onChange }) {
+export default function WatchlistButton({ productId, initial = false, onChange }) {
   const [watchlisted, setWatchlisted] = useState(initial);
   const [loading, setLoading] = useState(false);
 
@@ -9,11 +9,11 @@ export default function WatchlistButton({ cardId, initial = false, onChange }) {
     setLoading(true);
     try {
       if (watchlisted) {
-        await removeFromWatchlist(cardId);
+        await removeFromWatchlist(productId);
         setWatchlisted(false);
         onChange?.(false);
       } else {
-        await addToWatchlist(cardId);
+        await addToWatchlist(productId);
         setWatchlisted(true);
         onChange?.(true);
       }

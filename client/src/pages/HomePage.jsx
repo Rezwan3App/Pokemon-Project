@@ -1,46 +1,60 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getTrending } from '../api.js';
-import CardGrid from '../components/CardGrid.jsx';
+import ProductGrid from '../components/ProductGrid.jsx';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
+import DisclaimerBanner from '../components/DisclaimerBanner.jsx';
 
 export default function HomePage() {
-  const [cards, setCards] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     getTrending()
-      .then((data) => setCards(data.cards || []))
+      .then((data) => setProducts(data.products || []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
   return (
-    <div className="space-y-10">
-      <section className="card-surface p-8 text-center">
+    <div className="space-y-8">
+      <section className="card-surface space-y-4 p-8 text-center">
         <h1 className="font-display text-3xl font-bold sm:text-4xl">
-          Track Pokémon TCG prices & trends
+          Pokémon cards & sealed product prices
         </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-white/70">
-          Search cards from the official Pokémon TCG API, view mock market prices with 60-day
-          history, trend scores, and build your watchlist.
+        <p className="mx-auto max-w-2xl text-white/70">
+          Search singles, booster boxes, and Elite Trainer Boxes. Track mock market prices, view
+          history charts, and spot items with rising trend scores.
         </p>
-        <Link to="/search?q=charizard" className="btn-primary mt-6 inline-block">
-          Browse Charizard cards
-        </Link>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link to="/search?q=charizard" className="btn-primary">
+            Search Charizard
+          </Link>
+          <Link to="/search?q=elite+trainer+box" className="btn-secondary">
+            Browse ETBs
+          </Link>
+          <Link to="/search?q=booster+box" className="btn-secondary">
+            Booster boxes
+          </Link>
+        </div>
       </section>
 
+      <DisclaimerBanner />
+
       <section>
-        <h2 className="mb-4 text-xl font-semibold text-poke-yellow">Trending & movers</h2>
+        <h2 className="mb-4 text-xl font-semibold text-poke-yellow">Trending products</h2>
         {loading && <LoadingSpinner />}
         {error && (
           <p className="rounded-lg bg-red-500/20 p-4 text-red-200">
-            {error}. Is the API server running on port 3001?
+            {error}. Make sure the API is running on port 3001.
           </p>
         )}
         {!loading && !error && (
-          <CardGrid cards={cards} emptyMessage="Search for cards to start building price history." />
+          <ProductGrid
+            products={products}
+            emptyMessage="Search for products to build price history and trends."
+          />
         )}
       </section>
     </div>

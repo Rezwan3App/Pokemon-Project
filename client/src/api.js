@@ -6,32 +6,42 @@ async function request(path, options = {}) {
     ...options,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
-  }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
 
-export function searchCards(q, page = 1) {
-  return request(`/cards/search?q=${encodeURIComponent(q)}&page=${page}`);
+export function searchProducts(q, page = 1) {
+  return request(`/search?q=${encodeURIComponent(q)}&page=${page}`);
 }
 
-export function getCard(id) {
-  return request(`/cards/${encodeURIComponent(id)}`);
+export function getProduct(id) {
+  return request(`/products/${encodeURIComponent(id)}`);
+}
+
+export function getProductHistory(id) {
+  return request(`/products/${encodeURIComponent(id)}/history`);
 }
 
 export function getTrending() {
-  return request('/cards/trending');
+  return request('/trending');
 }
 
 export function getWatchlist() {
   return request('/watchlist');
 }
 
-export function addToWatchlist(cardId) {
-  return request(`/watchlist/${encodeURIComponent(cardId)}`, { method: 'POST' });
+export function addToWatchlist(productId) {
+  return request(`/watchlist/${encodeURIComponent(productId)}`, { method: 'POST' });
 }
 
-export function removeFromWatchlist(cardId) {
-  return request(`/watchlist/${encodeURIComponent(cardId)}`, { method: 'DELETE' });
+export function removeFromWatchlist(productId) {
+  return request(`/watchlist/${encodeURIComponent(productId)}`, { method: 'DELETE' });
+}
+
+export function triggerPriceUpdate() {
+  return request('/update-prices', { method: 'POST' });
+}
+
+export function healthCheck() {
+  return request('/health');
 }
