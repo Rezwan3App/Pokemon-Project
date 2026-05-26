@@ -1,19 +1,72 @@
-/**
- * Rule-based trend scoring (not ML).
- * Labels: Rising, Stable, Falling, High volatility
- *
- * NOT FINANCIAL ADVICE — educational estimate only.
- */
+import { extractLivePrice } from './pricing/livePrice.js';
 
 function percentChange(from, to) {
   if (!from || from === 0) return 0;
   return ((to - from) / from) * 100;
 }
 
-function priceAtOffset(history, daysBack) {
-  if (!history.length) return null;
-  const idx = Math.max(0, history.length - 1 - daysBack);
-  return history[idx];
+function priceAtOffset(prices, daysBack) {
+  if (!prices?.length) return null;
+  const idx = Math.max(0, prices.length - 1 - daysBack);
+  return prices[idx];
+}
+
+function round(n) {
+  return Number(n.toFixed(2));
+}
+
+/**
+ * Build display price summary.
+ * When product has live TCGplayer data from the Pokémon TCG API, that ALWAYS
+ * wins for current/low/high — even if DB history has stale mock rows.
+ */
+export function buildPriceSummary(history, product = null) {
+  const live = extractLivePrice(product);
+  const latest = history?.length ? history[history.length - 1] : null;
+
+  if (!live && !latest) return null;
+
+  const marketPrices = (history || []).map((h) => h.marketPrice);
+  const current = live?.market ?? latest?.marketPrice;
+  const low = live?.low ?? latest?.lowPrice;
+  const high = live?.high ?? latest?.highPrice;
+
+  const week = priceAtOffset(marketPrices, 7);
+  const month = priceAtOffset(marketPrices, 30);
+  const first = marketPrices[0];
+
+  const isLive = Boolean(live);
+  const isMock = !isLive;
+
+  let note;
+  if (isLive) {
+    note = `TCGplayer market price via Pokémon TCG API (${live.variant}). Chart history is estimated until daily snapshots build up.`;
+  } else {
+    note = 'No TCGplayer price on the Pokémon TCG API for this item — showing sample estimate only.';
+  }
+
+  return {
+    current,
+    low,
+    high,
+    mid: live?.mid ?? null,
+    directLow: live?.directLow ?? null,
+    variant: live?.variant ?? null,
+    tcgplayerUpdatedAt: live?.updatedAt ?? null,
+    listingsCount: latest?.listingsCount ?? 0,
+    lastUpdated: live?.updatedAt?.slice(0, 10) || latest?.recordedAt || toDateKey(),
+    source: isLive ? 'tcgplayer-via-pokemontcg-api' : latest?.source || 'mock',
+    isMock,
+    isLive,
+    change7d: round(percentChange(week, current)),
+    change30d: round(percentChange(month, current)),
+    changeAllTime: first ? round(percentChange(first, current)) : 0,
+    note,
+  };
+}
+
+function toDateKey(d = new Date()) {
+  return d.toISOString().slice(0, 10);
 }
 
 export function computeTrendScore(history) {
@@ -53,10 +106,8 @@ export function computeTrendScore(history) {
       ? Math.sqrt(returns.reduce((s, r) => s + (r - avgReturn) ** 2, 0) / (returns.length - 1))
       : 0;
 
-  // Upward consistency: fraction of positive daily moves in last 14 days
   const recent = returns.slice(-14);
   const upRatio = recent.length ? recent.filter((r) => r > 0).length / recent.length : 0.5;
-
   const listings = history[history.length - 1]?.listingsCount ?? 0;
   const liquidityBoost = Math.min(10, listings / 20);
 
@@ -66,7 +117,6 @@ export function computeTrendScore(history) {
 
   let label = 'Stable';
   let direction = 'stable';
-
   const highVolatility = volatility > 0.04;
 
   if (highVolatility && Math.abs(change7d) > 8) {
@@ -92,48 +142,8 @@ export function computeTrendScore(history) {
   };
 }
 
-function round(n) {
-  return Number(n.toFixed(2));
-}
-
-export function buildPriceSummary(history) {
-  if (!history?.length) return null;
-  const latest = history[history.length - 1];
-  const week = priceAtOffset(history.map((h) => h.marketPrice), 7);
-  const month = priceAtOffset(history.map((h) => h.marketPrice), 30);
-  const first = history[0].marketPrice;
-
-  const src = latest.source || '';
-  const isMock = !src || src.startsWith('mock') || src.includes('sample');
-  const isLive = src.startsWith('tcgplayer') || src.includes('cardmarket');
-
-  let note;
-  if (isLive) {
-    note = 'Current price from TCGplayer via the Pokémon TCG API. Historical points are simulated until daily snapshots accumulate.';
-  } else if (isMock) {
-    note = 'Sample market data (MVP). This card has no live TCGplayer price on the Pokémon TCG API yet.';
-  } else {
-    note = `Source: ${src}`;
-  }
-
-  return {
-    current: latest.marketPrice,
-    low: latest.lowPrice,
-    high: latest.highPrice,
-    listingsCount: latest.listingsCount ?? 0,
-    lastUpdated: latest.recordedAt,
-    source: src,
-    isMock,
-    isLive,
-    change7d: round(percentChange(week, latest.marketPrice)),
-    change30d: round(percentChange(month, latest.marketPrice)),
-    changeAllTime: round(percentChange(first, latest.marketPrice)),
-    note,
-  };
-}
-
 export function enrichProduct(product, history, watchlisted = false) {
-  const price = buildPriceSummary(history);
+  const price = buildPriceSummary(history, product);
   const trend = computeTrendScore(history);
   return { ...product, price, trend, watchlisted };
 }

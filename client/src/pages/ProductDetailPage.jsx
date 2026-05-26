@@ -117,11 +117,15 @@ export default function ProductDetailPage() {
       </div>
 
       <section className="surface p-5">
-        <div className="mb-3 flex items-baseline justify-between">
+        <div className="mb-3 flex items-baseline justify-between gap-4">
           <h2 className="text-base font-medium text-zinc-100">Price history</h2>
-          <span className="text-[11px] text-zinc-500">{price?.note}</span>
+          {price?.isLive && (
+            <span className="text-[11px] text-emerald-400/80">
+              Today matches TCGplayer market · past days estimated
+            </span>
+          )}
         </div>
-        <PriceChart history={history} />
+        <PriceChart history={history} livePrice={price} />
       </section>
     </div>
   );

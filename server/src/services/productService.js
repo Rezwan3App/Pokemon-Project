@@ -2,7 +2,8 @@ import { db } from '../database/index.js';
 import { searchCards, getCardProduct, getProductsByIds, getPopularCards } from './pokemonApi.js';
 import { searchSealed, getSealedById, getAllSealedProducts } from './sealedCatalog.js';
 import { updateProductPrices } from './pricing/index.js';
-import { mockProvider } from './pricing/mockProvider.js';
+import { mockProvider, refreshTodayPrice } from './pricing/mockProvider.js';
+import { hasLivePrice } from './pricing/livePrice.js';
 import { enrichProduct, computeTrendScore, buildPriceSummary } from './trends.js';
 import { toDateKey } from '../utils/dates.js';
 
@@ -10,6 +11,9 @@ import { toDateKey } from '../utils/dates.js';
 export async function syncProduct(product) {
   await db.upsertProduct(product);
   await mockProvider.ensureHistory(product);
+  if (hasLivePrice(product)) {
+    await refreshTodayPrice(product);
+  }
   return db.getProduct(product.id);
 }
 
@@ -17,8 +21,12 @@ export async function syncProduct(product) {
 async function syncProductsBatch(products) {
   if (!products.length) return [];
   await db.bulkUpsertProducts(products);
-  // history backfill — each ensureHistory itself uses a transaction
-  await Promise.all(products.map((p) => mockProvider.ensureHistory(p)));
+  await Promise.all(
+    products.map(async (p) => {
+      await mockProvider.ensureHistory(p);
+      if (hasLivePrice(p)) await refreshTodayPrice(p);
+    })
+  );
   return products;
 }
 
@@ -33,12 +41,24 @@ export async function getEnrichedProduct(productId) {
     }
     if (!product) return null;
     await syncProduct(product);
+  } else if (!productId.startsWith('sealed:')) {
+    // Always re-fetch card from API so tcgplayer prices are fresh
+    const fresh = await getCardProduct(productId);
+    if (fresh) {
+      await db.upsertProduct(fresh);
+      product = fresh;
+      await mockProvider.ensureHistory(product);
+    }
   }
 
-  // Only snapshot if we don't already have one for today
-  const latest = await db.getLatestPrice(productId);
-  if (!latest || latest.recordedAt !== toDateKey()) {
-    await updateProductPrices(product);
+  // Live cards: always overwrite today's DB row with latest TCGplayer values
+  if (hasLivePrice(product)) {
+    await refreshTodayPrice(product);
+  } else {
+    const latest = await db.getLatestPrice(productId);
+    if (!latest || latest.recordedAt !== toDateKey()) {
+      await updateProductPrices(product);
+    }
   }
 
   const history = await db.getPriceHistory(productId);
@@ -53,13 +73,13 @@ export async function searchAll(query, page = 1) {
   ]);
 
   const all = [...cardResult.products, ...sealedHits];
-  await syncProductsBatch(all);
+  // Batch DB writes in background-friendly way but don't block on price refresh
+  await db.bulkUpsertProducts(all);
+  await Promise.all(all.map((p) => mockProvider.ensureHistory(p)));
 
-  // Single watchlist + history fetch per product, all in parallel
-  const watchlistIds = new Set(
-    (await db.getWatchlist()).map((e) => e.productId)
-  );
+  const watchlistIds = new Set((await db.getWatchlist()).map((e) => e.productId));
 
+  // buildPriceSummary reads live prices from product.metadata directly
   const enriched = await Promise.all(
     all.map(async (p) => {
       const history = await db.getPriceHistory(p.id);
@@ -77,14 +97,9 @@ export async function searchAll(query, page = 1) {
   };
 }
 
-/**
- * Returns top risers, top fallers, and overall trending — all computed once
- * over products that have enough price history.
- */
 export async function getTrendingProducts({ limit = 5 } = {}) {
   let products = await db.getProductsWithHistory(7);
 
-  // Seed DB the first time so the home page never blanks
   if (products.length < limit * 2) {
     const sealed = getAllSealedProducts();
     const popular = await getPopularCards(4).catch((err) => {
@@ -95,21 +110,13 @@ export async function getTrendingProducts({ limit = 5 } = {}) {
     products = await db.getProductsWithHistory(7);
   }
 
-  const watchlistIds = new Set(
-    (await db.getWatchlist()).map((e) => e.productId)
-  );
+  const watchlistIds = new Set((await db.getWatchlist()).map((e) => e.productId));
 
   const scored = await Promise.all(
     products.map(async (p) => {
       const history = await db.getPriceHistory(p.id);
-      const trend = computeTrendScore(history);
-      const price = buildPriceSummary(history);
-      return {
-        ...p,
-        price,
-        trend,
-        watchlisted: watchlistIds.has(p.id),
-      };
+      const enriched = enrichProduct(p, history, watchlistIds.has(p.id));
+      return enriched;
     })
   );
 
@@ -143,13 +150,11 @@ export async function getWatchlistProducts() {
   return result;
 }
 
-/** Run price update for all known products (cron + manual) */
 export async function runPriceUpdateJob() {
   const ids = await db.getAllProductIds();
   let updated = 0;
   const errors = [];
 
-  // Process in chunks of 10 in parallel
   for (let i = 0; i < ids.length; i += 10) {
     const chunk = ids.slice(i, i + 10);
     const results = await Promise.allSettled(

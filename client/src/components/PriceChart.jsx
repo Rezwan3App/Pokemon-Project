@@ -16,15 +16,44 @@ const RANGES = [
   { key: 'all', label: 'All time', days: null },
 ];
 
-export default function PriceChart({ history }) {
+export default function PriceChart({ history, livePrice }) {
   const [range, setRange] = useState('30d');
 
   const filtered = useMemo(() => {
     if (!history?.length) return [];
     const cfg = RANGES.find((r) => r.key === range);
-    if (!cfg?.days) return history;
-    return history.slice(-cfg.days);
-  }, [history, range]);
+    let rows = cfg?.days ? history.slice(-cfg.days) : [...history];
+
+    // Ensure chart ends at live TCGplayer market price when available
+    if (livePrice?.isLive && livePrice.current != null && rows.length) {
+      const today = new Date().toISOString().slice(0, 10);
+      const last = rows[rows.length - 1];
+      if (last.recordedAt === today) {
+        rows = [
+          ...rows.slice(0, -1),
+          {
+            ...last,
+            marketPrice: livePrice.current,
+            lowPrice: livePrice.low ?? last.lowPrice,
+            highPrice: livePrice.high ?? last.highPrice,
+            source: 'tcgplayer-via-pokemontcg-api',
+          },
+        ];
+      } else {
+        rows = [
+          ...rows,
+          {
+            recordedAt: today,
+            marketPrice: livePrice.current,
+            lowPrice: livePrice.low,
+            highPrice: livePrice.high,
+            source: 'tcgplayer-via-pokemontcg-api',
+          },
+        ];
+      }
+    }
+    return rows;
+  }, [history, range, livePrice]);
 
   if (!history?.length) {
     return <p className="py-8 text-center text-sm text-zinc-500">No price history yet.</p>;

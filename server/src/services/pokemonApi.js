@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { pickPrimaryVariant } from './pricing/livePrice.js';
 
 const BASE_URL = 'https://api.pokemontcg.io/v2';
 
@@ -77,26 +78,6 @@ function isRetryable(err) {
 
 function truncate(s, max = 160) {
   return s && s.length > max ? `${s.slice(0, max)}…` : s;
-}
-
-/** Variant priority — pick the most relevant pricing tier for "default" view */
-const VARIANT_PRIORITY = [
-  'holofoil',
-  '1stEditionHolofoil',
-  'unlimitedHolofoil',
-  'reverseHolofoil',
-  '1stEditionNormal',
-  'normal',
-  'unlimited',
-];
-
-function pickPrimaryVariant(prices) {
-  if (!prices) return null;
-  for (const key of VARIANT_PRIORITY) {
-    if (prices[key]) return key;
-  }
-  const keys = Object.keys(prices);
-  return keys[0] || null;
 }
 
 /** Normalize Pokémon TCG API card → unified product shape (with real TCG prices) */
