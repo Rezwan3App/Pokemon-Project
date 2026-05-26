@@ -18,7 +18,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-ink/85 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-white/5 bg-poke-dark/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
           <Link to="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <span className="inline-block h-2 w-2 rounded-full bg-poke-yellow" />

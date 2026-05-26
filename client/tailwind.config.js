@@ -4,7 +4,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#0b0c0e',
         poke: {
           red: '#EE1515',
           yellow: '#FFCB05',
