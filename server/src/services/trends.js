@@ -37,12 +37,17 @@ export function buildPriceSummary(history, product = null) {
 
   const isLive = Boolean(live);
   const isMock = !isLive;
+  const provider = live ? product.metadata?.externalProvider : null;
 
   let note;
-  if (isLive) {
-    note = `TCGplayer market price via Pokémon TCG API (${live.variant}). Chart history is estimated until daily snapshots build up.`;
+  if (isLive && provider === 'pokewallet') {
+    note = 'TCGplayer market price via PokéWallet (refreshed more often than the Pokémon TCG API embed).';
+  } else if (isLive && provider === 'tcgapi') {
+    note = 'TCGplayer market price via TCG API (tcgapi.dev). Chart history is estimated until daily snapshots build up.';
+  } else if (isLive) {
+    note = 'TCGplayer market price via the Pokémon TCG API embed. For fresher prices, add POKEWALLET_API_KEY.';
   } else {
-    note = 'No TCGplayer price on the Pokémon TCG API for this item — showing sample estimate only.';
+    note = 'No live price available — sample estimate only. Add POKEWALLET_API_KEY for real TCGplayer data.';
   }
 
   return {

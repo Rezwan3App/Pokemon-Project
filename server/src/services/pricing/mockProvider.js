@@ -4,34 +4,59 @@ import { toDateKey } from '../../utils/dates.js';
 import { db } from '../../database/index.js';
 import { PROVIDER_IDS } from './providerContract.js';
 import { extractLivePrice } from './livePrice.js';
+import { lookupExternalPrice, applyExternalMeta } from './externalPricing.js';
 
 /**
- * Pricing provider: uses REAL TCGplayer data from the Pokémon TCG API when
- * available. Mock/simulated data is only used for sealed products or cards
- * with no tcgplayer block on the API response.
+ * Default pricing provider chain (inside PRICING_MODE=mock or as fallback):
+ *   1. External APIs (PokéWallet / TCG API) when keys + auto mode
+ *   2. Pokémon TCG API embedded TCGplayer prices
+ *   3. Deterministic mock for sealed / missing data
  */
 export const mockProvider = {
   id: PROVIDER_IDS.MOCK,
   isLive: false,
 
   async fetchPrices(product, dateKey = toDateKey()) {
-    // Backfill past days only — never pre-fill today with mock data
     await ensureHistory(product);
 
-    const live = extractLivePrice(product);
-    let snapshot;
+    let workingProduct = product;
+    let snapshot = null;
 
-    if (live) {
-      snapshot = {
-        productId: product.id,
-        marketPrice: live.market,
-        lowPrice: live.low,
-        highPrice: live.high,
-        listingsCount: 0,
-        source: 'tcgplayer-via-pokemontcg-api',
-        recordedAt: dateKey,
-      };
-    } else {
+    // Tier 1: external APIs (fresher than pokemontcg.io embed)
+    if (config.pricingMode === 'auto') {
+      const external = await lookupExternalPrice(product, dateKey);
+      if (external) {
+        workingProduct = applyExternalMeta(product, external);
+        snapshot = {
+          productId: product.id,
+          marketPrice: external.marketPrice,
+          lowPrice: external.lowPrice,
+          highPrice: external.highPrice,
+          listingsCount: external.listingsCount ?? 0,
+          source: external.source,
+          recordedAt: dateKey,
+        };
+      }
+    }
+
+    // Tier 2: Pokémon TCG API embedded TCGplayer block
+    if (!snapshot) {
+      const live = extractLivePrice(product);
+      if (live) {
+        snapshot = {
+          productId: product.id,
+          marketPrice: live.market,
+          lowPrice: live.low,
+          highPrice: live.high,
+          listingsCount: 0,
+          source: 'tcgplayer-via-pokemontcg-api',
+          recordedAt: dateKey,
+        };
+      }
+    }
+
+    // Tier 3: mock walk
+    if (!snapshot) {
       const base = baseMarket(product);
       const history = await db.getPriceHistory(product.id);
       const dayOffset = history.length ? -1 : 0;
@@ -95,10 +120,6 @@ function spread(market, productId, dayOffset) {
   };
 }
 
-/**
- * Backfill past days only (excludes today).
- * Today is always written by fetchPrices with live or mock snapshot.
- */
 async function ensureHistory(product, days = 60) {
   const existing = await db.getPriceHistory(product.id, 1);
   if (existing.length > 0) return;
@@ -109,13 +130,11 @@ async function ensureHistory(product, days = 60) {
   const todayKey = toDateKey(today);
 
   const rows = [];
-  // i = days-1 .. 1 (skip i=0 which is today)
   for (let i = days - 1; i >= 1; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     const dateKey = toDateKey(d);
     if (dateKey === todayKey) continue;
-
     const market = marketOnDay(base, product.id, -i);
     const { low, high, listings } = spread(market, product.id, -i);
     rows.push({
@@ -133,7 +152,13 @@ async function ensureHistory(product, days = 60) {
 
 mockProvider.ensureHistory = ensureHistory;
 
-/** Force today's row to match latest API/TCGplayer data (overwrites mock) */
 export async function refreshTodayPrice(product) {
   return mockProvider.fetchPrices(product, toDateKey());
+}
+
+/** For search/detail — merge external price into product without DB write */
+export async function enrichWithExternalPrice(product) {
+  if (config.pricingMode !== 'auto') return product;
+  const external = await lookupExternalPrice(product);
+  return external ? applyExternalMeta(product, external) : product;
 }

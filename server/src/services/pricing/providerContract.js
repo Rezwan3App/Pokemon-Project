@@ -18,6 +18,8 @@
 
 export const PROVIDER_IDS = {
   MOCK: 'mock',
+  POKEWALLET: 'pokewallet',
+  TCGAPI: 'tcgapi',
   TCGPLAYER: 'tcgplayer',
   EBAY: 'ebay',
 };

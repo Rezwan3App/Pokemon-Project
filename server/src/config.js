@@ -21,7 +21,12 @@ export const config = {
   ebayClientId: process.env.EBAY_CLIENT_ID || '',
   ebayClientSecret: process.env.EBAY_CLIENT_SECRET || '',
 
-  /** MVP default: mock only. Use auto|tcgplayer|ebay when live APIs are ready */
+  /** Recommended: PokéWallet — https://pokewallet.io (free tier, TCGPlayer + CardMarket) */
+  pokewalletApiKey: process.env.POKEWALLET_API_KEY || '',
+  /** Alternative: TCG API — https://tcgapi.dev (100 req/day free, daily TCGPlayer refresh) */
+  tcgApiKey: process.env.TCGAPI_KEY || '',
+
+  /** mock = sample only | auto = external APIs → Pokémon TCG embed → mock */
   pricingMode: (process.env.PRICING_MODE || 'mock').toLowerCase(),
 
   mockPriceSeed: process.env.MOCK_PRICE_SEED || 'pokemon-tracker-mvp',

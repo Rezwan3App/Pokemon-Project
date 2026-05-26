@@ -2,7 +2,7 @@ import { db } from '../database/index.js';
 import { searchCards, getCardProduct, getProductsByIds, getPopularCards } from './pokemonApi.js';
 import { searchSealed, getSealedById, getAllSealedProducts } from './sealedCatalog.js';
 import { updateProductPrices } from './pricing/index.js';
-import { mockProvider, refreshTodayPrice } from './pricing/mockProvider.js';
+import { mockProvider, refreshTodayPrice, enrichWithExternalPrice } from './pricing/mockProvider.js';
 import { hasLivePrice } from './pricing/livePrice.js';
 import { enrichProduct, computeTrendScore, buildPriceSummary } from './trends.js';
 import { toDateKey } from '../utils/dates.js';
@@ -46,13 +46,13 @@ export async function getEnrichedProduct(productId) {
     const fresh = await getCardProduct(productId);
     if (fresh) {
       await db.upsertProduct(fresh);
-      product = fresh;
+      product = await enrichWithExternalPrice(fresh);
       await mockProvider.ensureHistory(product);
     }
   }
 
-  // Live cards: always overwrite today's DB row with latest TCGplayer values
-  if (hasLivePrice(product)) {
+  // Live cards: always overwrite today's DB row with latest prices
+  if (hasLivePrice(product) || product.metadata?.externalProvider) {
     await refreshTodayPrice(product);
   } else {
     const latest = await db.getLatestPrice(productId);
@@ -82,8 +82,9 @@ export async function searchAll(query, page = 1) {
   // buildPriceSummary reads live prices from product.metadata directly
   const enriched = await Promise.all(
     all.map(async (p) => {
+      const fresh = await enrichWithExternalPrice(p);
       const history = await db.getPriceHistory(p.id);
-      return enrichProduct(p, history, watchlistIds.has(p.id));
+      return enrichProduct(fresh, history, watchlistIds.has(p.id));
     })
   );
 

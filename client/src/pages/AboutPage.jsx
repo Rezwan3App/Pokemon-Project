@@ -17,22 +17,27 @@ export default function AboutPage() {
       <Section title="Where prices come from">
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
-            <strong className="text-zinc-200">Cards with TCGplayer data:</strong>{' '}
-            the Pokémon TCG API embeds current TCGplayer market / low / mid /
-            high prices. We use those directly when available.
+            <strong className="text-zinc-200">Best (recommended):</strong>{' '}
+            <a href="https://pokewallet.io" className="text-poke-yellow hover:underline" target="_blank" rel="noreferrer">
+              PokéWallet API
+            </a>{' '}
+            — TCGPlayer + CardMarket, refreshed often. Set <code>POKEWALLET_API_KEY</code> +{' '}
+            <code>PRICING_MODE=auto</code>.
           </li>
           <li>
-            <strong className="text-zinc-200">Cards without:</strong> some newer
-            or obscure cards lack TCGplayer fields. Those show sample data so
-            the chart isn&apos;t empty.
+            <strong className="text-zinc-200">Alternative:</strong>{' '}
+            <a href="https://tcgapi.dev" className="text-poke-yellow hover:underline" target="_blank" rel="noreferrer">
+              TCG API
+            </a>{' '}
+            — daily TCGPlayer refresh, sealed products. Set <code>TCGAPI_KEY</code>.
           </li>
           <li>
-            <strong className="text-zinc-200">Sealed products:</strong> sample
-            data only until a sealed product price API is wired in.
+            <strong className="text-zinc-200">Fallback:</strong> Pokémon TCG API embedded TCGplayer
+            block (can lag days behind tcgplayer.com on new sets).
           </li>
           <li>
-            <strong className="text-zinc-200">News:</strong> PokéBeach public
-            RSS feed (refreshed hourly, no scraping).
+            <strong className="text-zinc-200">Sample data:</strong> used only when no live source
+            returns a price (sealed catalog, missing API data).
           </li>
         </ul>
       </Section>

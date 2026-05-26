@@ -2,6 +2,7 @@ import { config } from '../../config.js';
 import { mockProvider } from './mockProvider.js';
 import { tcgplayerProvider } from './tcgplayerProvider.js';
 import { ebayProvider } from './ebayProvider.js';
+import { getExternalPricingStatus } from './externalPricing.js';
 import { PROVIDER_IDS } from './providerContract.js';
 
 /** Registry — add new providers here */
@@ -76,6 +77,7 @@ export function getPricingStatus() {
     mvpUsesMockOnly: mode === PROVIDER_IDS.MOCK,
     tcgplayerConfigured: Boolean(config.tcgplayerPublicKey && config.tcgplayerPrivateKey),
     ebayConfigured: Boolean(config.ebayClientId && config.ebayClientSecret),
+    ...getExternalPricingStatus(),
   };
 }
 

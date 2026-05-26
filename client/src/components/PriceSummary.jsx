@@ -8,9 +8,10 @@ export default function PriceSummary({ price }) {
     <div className="surface p-4">
       <div className="flex items-baseline justify-between gap-2">
         <span className="label">Market price</span>
-        {price.isLive ? (
+        {price?.isLive ? (
           <span className="text-[10px] uppercase tracking-wide text-emerald-400">
-            Live · TCGplayer{price.variant ? ` · ${formatVariant(price.variant)}` : ''}
+            Live · {price.source?.includes('pokewallet') ? 'PokéWallet' : price.source?.includes('tcgapi') ? 'TCG API' : 'TCGplayer'}
+            {price.variant ? ` · ${formatVariant(price.variant)}` : ''}
           </span>
         ) : (
           <span className="text-[10px] uppercase tracking-wide text-amber-400">Sample estimate</span>
