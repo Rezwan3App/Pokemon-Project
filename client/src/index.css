@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen bg-gradient-to-br from-poke-dark via-[#0f3460] to-poke-panel;
+  }
+}
+
+@layer components {
+  .card-surface {
+    @apply rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-lg transition hover:border-poke-yellow/40 hover:shadow-poke-yellow/10;
+  }
+  .btn-primary {
+    @apply rounded-lg bg-poke-red px-4 py-2 font-semibold text-white transition hover:bg-red-600 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply rounded-lg border border-white/20 bg-white/10 px-4 py-2 font-medium transition hover:bg-white/20;
+  }
+  .input-field {
+    @apply w-full rounded-lg border border-white/20 bg-black/30 px-4 py-2.5 text-white placeholder-white/40 outline-none focus:border-poke-yellow focus:ring-1 focus:ring-poke-yellow;
+  }
+}
